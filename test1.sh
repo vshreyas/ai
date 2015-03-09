@@ -1,0 +1,1 @@
+python3 multi_tail.py & for i in `seq 1 200`;do echo { \"content\": { \"key$i\": \"value1\", \"key12\": { \"key2.1\": \"value2.1\", \"key2.1\": \"value2.1\" }, \"key13\": \"value3\" }, \"at\": \"`date`\", \"note\": \"hello robert\" }>>test`expr $i % 2 + 1`.log;sleep 1;done && fg

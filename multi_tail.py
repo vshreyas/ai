@@ -167,7 +167,7 @@ class OutputAppender(Thread):
                 self.output_queue.sort(key=getKey)
                 for m in self.output_queue:
                     self.out.write(json.dumps(m, sort_keys=True, indent=4,separators=(',',':')))
-                    self.out.write('\n')
+                    self.out.write('\n\n')
                 del self.output_queue
                 self.output_queue = []
 
