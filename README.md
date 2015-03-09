@@ -1,10 +1,9 @@
 Programming Languages Used
-
 ---------------------------------------------
+
 Python 3.2
 
 Key Assumptions
-
 ---------------------------------------------
 
 1. Timestamps are in the format specified in the example, and use one of 30 well known timezone abbreviations
@@ -13,38 +12,35 @@ Key Assumptions
 
 3.  UTF-8 encoding is used
 
-
 Requirements
-
 ---------------------------------------------
 
 Python installation
 python-dateutils
 
-
 Setup
-
 ----------------------------------------------
-Install Python
+
+Install Python3
 pip3 install dateutils
 
 Running the program
-
 ----------------------------------------------
-<progname> -h gives help instructions
-<progname> [-D  /path/to/directory [–T xxx [-B]]]
 
+python3 <progname> -h gives help instructions
+python3 <progname> [-D  /path/to/directory [–T xxx [-B]]]
 
+Testing the program and verifying output
+-------------------------------------------
 
+python3 <progname> [options] | python3 check_ouput.py
 
-
-
-
+Test cases have been provided as test1.sh, test2.sh.....
 
 Design and architecture
-
 ----------------------------------------------
-Multi-threading was used to promote concurrent reading of log files with fairness. Turnaround time  for each message may be slightly higher than the specified interval T. Some parameters of the system are configured based on the value of T and n(the number of files being monitored)
+
+Multi-threading was used to promote concurrent reading of log files with fairness. Turnaround time  for each message may be slightly higher than the specified interval T. 
 
 High level description:
 
@@ -58,64 +54,29 @@ It collects initial stats for last modified date and file size for each of these
 2.Main process then launches threads to monitor each file for changes. 
 
 Each LogReader thread keeps the following variables:
-
 - Last position read to in each file
 - Queue object shared with output thread
-- 
-
+- Name of file
 and runs the following code:
-
 2.1.  Iterate and enqueue the last line(default) or all the lines(-B option) of the file that are available at the beginning.
 2.2  Scan the file for changes 
 2.3 If a text message has been appended, read it from the file, parse it to JSON with error handling, enqueue the augmented message in the queue for that file. If queue is full, 
-2.4  Sleep for a period of T/2*n to prevent stalling of CPU and OS
+2.4  Sleep for a period of T/2*(n+1) to prevent stalling of CPU and OS
 2.5 Go back to step 2.2
 
-3. Main process also launches an output thread in parallel. This OutputAppender thread runs the following procedure in a loop:
+3. Main process also launches output thread in parallel. This thread runs the following procedure:
 
-3.1 Iterate over all buffers, popping the top element as it becomes available. A blocking call is issued with a timeout of T/2*n
-3.2 External sort merge is used to combine the sorted lists into a globally ordered list. N.B. This is guaranteed to be stable
+3.1 Iterate over all input queues issuing a blocking call to pop the 1st element, with a timeout value of  T/2*(n+1). Accumulate the results in a sorted list holding the output, using the sort merge algorithm
+3.2  Print the sorted output and flush output queue.
 
-Correctness
----------------------------
-The program is guaranteed to output the messages within a file in the order of their timestamps, ties being broken by the receiving time
-
-
-
-
-
-
-
-
-
-
-
-Testing Platform
-
------------------------------------------------
-
-Processor: Intel Core i3-2370 CPU @2.4GHz
-
-Installed RAM: 6GB
-
-Working memory at time of execution (limit set in environment): 1MB
-
-Operating System: Ubuntu 12.0.4(Linux kernel 3.2.0-29-generic)
-
-
-
-
-
-Design
-
+Modules
 ------------------------------------------------
-The basic blocks of the design consist of: (highlight and explain the buffer design)
+
 Common Functions :
 _fstat(filename)
 getKey(json_msg)
 
-Classname :
- 
+Classname : 
 LogFileReader 
 The purpose of this class is to perform line flush from the logfiles as and when additional  lines are added to the logfiles or when the logfile is regenerated.
 Functions
@@ -130,10 +91,42 @@ Functions :
 __init__(self, out = sys.stdout, maxsize=2000)
 run(self)
 multi_tail(root_dir, max_size=20000, interval=1.0, seek_begin=False)
+Testing Platform
+-----------------------------------------------
+
+Processor: Intel Core i3-2370 CPU @2.4GHz
+
+Installed RAM: 6GB
+
+Working memory at time of execution (limit set in environment): 100MB
+
+Operating System: Ubuntu 12.0.4(Linux kernel 3.2.0-29-generic)
+
+Test cases
+-----------------------------------------------
+
+Options are assumed to be default unless otherwise mentioned
+1. Single empty log file
+2. Single log file test.log containing a JSON message with input,at
+3. Single log file test.log containing an unformatted string
+4. Single log file test.log containing a JSON message without input,at
+5. Single log file test.log containing 5 JSON messages with input,at and different timestamps, -B option
+6. Single log file with generator process(Bash script) that appends a JSON message every 1 second
+7. Two log files test1.log,  test2.log containing 5 JSON messages with input,at and different timestamps, -B option
+8.  Two log files test1.log,  test2.log with generator process(Bash script) that appends a JSON message every 1 second
+9.  Two log files test1.log,  test2.log with generator processes(Bash script) that append a JSON message every 1 second and 2 seconds respectively
+10. Two log files test1.log,  test2.log with generator process(Bash script) that appends a JSON message every 1 second. Log file 2 is rotated after 10 seconds(renamed original to test2.log.2015-01-01 and new file test2.log created)
+11. Two log files test1.log,  test2.log with generator process(Bash script) that appends a JSON message every 1 second. Option -T 500(max wait time 500 milliseconds)
+12. Two log files test1.log,  test2.log with generator process(Bash script) that appends a JSON message every 1 second. Option -T 1500(max wait time 1500 milliseconds)
+13. Performance test with 10 log files and processes to append to them
 
 
+Test criteria
+-----------------------------------
+
+1. Check output sorted by timestamp for intervals of T millisecond(using check_sorted.py). Number of out of order messages reported
+2. Check ordering within output for messages from a single file with the same timestamp
+3. Measure fairness using number of messages logged from each file in a time interval of 100 seconds
+4. Measure worst case turnaround time for a message by checking the difference between timestamp and time it was emitted for each message
 
 
-
-ai
-==
