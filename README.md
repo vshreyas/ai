@@ -44,7 +44,7 @@ Running the program
 Design and architecture
 
 ----------------------------------------------
-Multi-threading was used to promote concurrent reading of log files with fairness. Turnaround time  for each message may be slightly higher than the specified interval T. 
+Multi-threading was used to promote concurrent reading of log files with fairness. Turnaround time  for each message may be slightly higher than the specified interval T. Some parameters of the system are configured based on the value of T and n(the number of files being monitored)
 
 High level description:
 
@@ -68,13 +68,20 @@ and runs the following code:
 2.1.  Iterate and enqueue the last line(default) or all the lines(-B option) of the file that are available at the beginning.
 2.2  Scan the file for changes 
 2.3 If a text message has been appended, read it from the file, parse it to JSON with error handling, enqueue the augmented message in the queue for that file. If queue is full, 
-2.4  Sleep for a period of T/2*(n+1) to prevent stalling of CPU and OS
+2.4  Sleep for a period of T/2*n to prevent stalling of CPU and OS
 2.5 Go back to step 2.2
 
-3. Main process also launches output thread in parallel. This thread runs the following procedure:
+3. Main process also launches an output thread in parallel. This OutputAppender thread runs the following procedure in a loop:
 
-3.1 Iterate over all input queues issuing a non-blocking call to 
-3.2 
+3.1 Iterate over all buffers, popping the top element as it becomes available. A blocking call is issued with a timeout of T/2*n
+3.2 External sort merge is used to combine the sorted lists into a globally ordered list. N.B. This is guaranteed to be stable
+
+Correctness
+---------------------------
+The program is guaranteed to output the messages within a file in the order of their timestamps, ties being broken by the receiving time
+
+
+
 
 
 
